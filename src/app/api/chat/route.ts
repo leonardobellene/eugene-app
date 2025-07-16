@@ -1,7 +1,19 @@
 import { streamText, convertToCoreMessages } from 'ai';
-import { openai } from '@ai-sdk/openai';
+import { createOpenAI } from '@ai-sdk/openai';
 
 export async function POST(req: Request) {
+  // Debug: Check if API key is available
+  console.log('Environment check:', {
+    hasApiKey: !!process.env.OPENAI_API_KEY,
+    keyLength: process.env.OPENAI_API_KEY?.length || 0,
+    nodeEnv: process.env.NODE_ENV
+  });
+
+  if (!process.env.OPENAI_API_KEY) {
+    console.error('OPENAI_API_KEY is not set');
+    return new Response('API key not configured', { status: 500 });
+  }
+
   const { messages, username, gender, language } = await req.json();
 
   // Build the gendered description for the system message
@@ -30,8 +42,13 @@ export async function POST(req: Request) {
 
   const coreMessages = convertToCoreMessages(messages);
 
+  // Create OpenAI client with explicit API key
+  const openaiClient = createOpenAI({
+    apiKey: process.env.OPENAI_API_KEY,
+  });
+
   const result = streamText({
-    model: openai.chat('gpt-4o'),
+    model: openaiClient('gpt-4o'),
     system: systemPrompt,
     messages: coreMessages,
     temperature: 0.5,
